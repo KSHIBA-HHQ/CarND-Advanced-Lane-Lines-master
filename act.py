@@ -185,11 +185,25 @@ def abs_sobel_thresh(img_src, orient='x', thresh_min=0, thresh_max=255):
     #binary_output = np.copy(img) # Remove this line
     return binary_output
 
+
 def  image_decolor(img , N):
 #減色を用いたレーン検出処理    
+    H=img.shape[0]
+    W=img.shape[1]
+    R=6
+    h=H//R
+    w=W//R
+    
+    ximg=cv2.resize(img,(w,h),cv2.INTER_LANCZOS4)
 
-#    img_src = cv2.medianBlur(img, ksize=7)
-    img_src = cv2.fastNlMeansDenoisingColored(img,None,10,10,7,21)
+    t=0.25
+    if t>0:
+        op = np.array([[-t, -t, -t], [-t, 1+8*t, -t], [-t, -t, -t]])
+        ximg = cv2.filter2D(ximg, ddepth=-1, kernel=op)
+        
+    img_src=ximg.copy()
+    #img_src = cv2.fastNlMeansDenoisingColored(ximg,None,10,10,7,21)
+
     Z = img_src.reshape((-1,3))
 
     # float32に変換
@@ -202,7 +216,8 @@ def  image_decolor(img , N):
                               None,
                               criteria,
                               10,
-                              cv2.KMEANS_RANDOM_CENTERS)
+                              #cv2.KMEANS_RANDOM_CENTERS
+                              cv2.KMEANS_PP_CENTERS)
    
     ##検出ラベルごとの画素数確認
     result=[]
@@ -214,51 +229,60 @@ def  image_decolor(img , N):
     #行と列数にずれなきこと確認
     # print(center)
   
-  
+   
     #面積と輝度を確認して排除
-    gray=[];  
     for i in range(K):
-        if(result[i]>20000):
+        delsize=50000//(R*R)
+        if(result[i]>delsize):
             center[i]*=0
+            continue
+            
         g=center[i][0]*0.299+center[i][1]*0.587+center[i][2]*0.114
         if(g<80):
-            g=0
-            center[i]=0
-        gray.append(g)   
-  
+            center[i]*=0 
+        
+    #print(label.shape)    
+    test=label.copy()
+    test=test.reshape(h,w)
+    
+        
+    #print(test.shape)   
     #横方向の連なりを確認して排除
     for i in range(K):
         #sliding windows 
+        if(all(center[i]==0)):
+            continue
+            
         mysliding=32
         half=mysliding//2
-        for j in range(half,img.shape[0],half):
+        
+        xtest=np.sum(test==i, axis=1)
+       
+        for j in range(half,h,half):
             t= j-half
             b= j+half
             if(t<0):
                 continue
-            if(b>=img.shape[0]):    
+            if(b>=h):    
                 continue
-            cnt=(np.sum(label[t:b]==i))
-            if(cnt>img.shape[1]):
-                center[i]=0
+            cnt=(np.sum(xtest[t:b]))
+            if(cnt>((w*7))//10):
+                center[i]*=0
                 break
-             
                 
-    
     #print(center)
-    #print(gray)    
     
     # UINT8に変換
     center = np.uint8(center)
     res = center[label.flatten()]
-    img_dst = res.reshape((img_src.shape))
+    ximg_dst = res.reshape((img_src.shape))
     
+    img_dst=cv2.resize(ximg_dst,(W,H))
     #plt.figure(figsize=(15, 5))
     #plt.imshow(img_dst) 
     
 
     return img_dst
-
 
 
 
@@ -329,7 +353,9 @@ def unwarp(img,  mtx, dist ,M):
 import numpy as np
 def get_warped_histogram_pack(warped):
 #★ワープ画像からヒストグラムと左右ヒストグラムピーク位置を求める
-    gray = cv2.cvtColor(warped, cv2.COLOR_RGB2GRAY)
+    gray=warped.copy() 
+    if(len(warped.shape)==3):
+        gray = cv2.cvtColor(gray, cv2.COLOR_RGB2GRAY)
     histogram = np.sum(gray[gray.shape[0]//2:,:], axis=0)
 
     # Find the peak of the left and right halves of the histogram
