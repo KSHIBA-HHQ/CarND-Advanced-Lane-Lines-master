@@ -509,7 +509,7 @@ def get_mid_fitting(left_fit,right_fit) :
     
     return mid_fit ,ploty, left_plotx, right_plotx, mid_plotx
 
-def polynomial2ndfit(nonspace,left_lane_inds,right_lane_inds):
+def polynomial2ndfit(nonspace,left_lane_inds,right_lane_inds,leftx_base,rightx_base):
 
     nonzero=nonspace[0]
     nonzerox=nonspace[1]    
@@ -527,9 +527,16 @@ def polynomial2ndfit(nonspace,left_lane_inds,right_lane_inds):
 
     # Fit a second order polynomial to each
     # 2次式で近似する
-    left_fit = np.polyfit(lefty, leftx, 2)
-    right_fit = np.polyfit(righty, rightx, 2)
-    
+    if(leftx.shape[0]>2):
+         left_fit = np.polyfit(lefty, leftx, 2)
+    else:
+         left_fit = np.array([0,0,leftx_base])
+
+    if(rightx.shape[0]>2):
+         right_fit = np.polyfit(righty, rightx, 2)
+    else:
+         right_fit = np.array([0,0,rightx_base])
+         
     mid_fit ,ploty, left_plotx, right_plotx, mid_plotx =get_mid_fitting(left_fit,right_fit) 
 
 #######################################################  
@@ -644,13 +651,13 @@ def ans_project_move_function(img,lastx_base,last_fit):
     left_lane_inds,right_lane_inds,nonspace,rect=sliding_detect_function(binary_warped,9,80,leftx_base,rightx_base)
 
 
-    lfit,rfit,mfit,plotter,realfit=polynomial2ndfit(nonspace,left_lane_inds,right_lane_inds)
+    lfit,rfit,mfit,plotter,realfit=polynomial2ndfit(nonspace,left_lane_inds,right_lane_inds,leftx_base,rightx_base)
     if len(last_fit)==3:
         lastl=last_fit[0]
         lastr=last_fit[1]
         lastm=last_fit[2]
         
-        hist=[lastl!=np.zeros(lastl.shape),lastr!=np.zeros(lastr.shape),lastm!=np.zeros(lastm.shape)] 
+        hist=[all(lastl!=np.zeros(lastl.shape)),all(lastr!=np.zeros(lastr.shape)),all(lastm!=np.zeros(lastm.shape))] 
                   
         if ((len(left_lane_inds)<10)and(hist[0]==True)):    
             lfit=lastl
@@ -659,7 +666,7 @@ def ans_project_move_function(img,lastx_base,last_fit):
         if ((len(right_lane_inds)<10)and(hist[1]==True)):
             rfit=lastr
             mfit ,plotter[0], plotter[1], plotter[2], plotter[3] =get_mid_fitting(lfit,rfit) 
-        
+           
     
     convL,convR,convM=convert_plotter_warp2undist(plotter[0],plotter[1],plotter[2],plotter[3])
     
@@ -718,12 +725,16 @@ def process_image(image):
 
 
 prj_output = 'videos_output/xproject_ans.mp4'
+
 ## To speed up the testing process you may want to try your pipeline on a shorter subclip of the video
 ## To do so add .subclip(start_second,end_second) to the end of the line below
 ## Where start_second and end_second are integer values representing the start and end of the subclip
 ## You may also uncomment the following line for a subclip of the first 5 seconds
 ##clip1 = VideoFileClip("test_videos/solidWhiteRight.mp4").subclip(0,5)
-clip1  = VideoFileClip("./xproject_video.mp4").subclip(0,5)
+
+##clip1  = VideoFileClip("./project_video.mp4").subclip(0,5)
+clip1  = VideoFileClip("./challenge_video.mp4")
+
 #white_clip  =  clip1.fl_image(test_image) #NOTE: this function expects color images!!
 white_clip  =  clip1.fl_image(process_image) #NOTE: this function expects color images!!
 white_clip.write_videofile(prj_output, audio=False)
