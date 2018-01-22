@@ -356,6 +356,7 @@ def get_warped_histogram_pack(warped):
     gray=warped.copy() 
     if(len(warped.shape)==3):
         gray = cv2.cvtColor(gray, cv2.COLOR_RGB2GRAY)
+        
     histogram = np.sum(gray[gray.shape[0]//2:,:], axis=0)
 
     # Find the peak of the left and right halves of the histogram
@@ -371,11 +372,14 @@ def get_warped_histogram_pack(warped):
     if(histogram[rightx_base]<(avg*12)//10):
         err=err+2
         
-        
+    if(err>0):
+        print('histgram task error happen ')
+    
+    #errorの際は、get_points_for_warp_operationの台形変換で用いた1/4 ,3/4に立ち戻る
     if(err==1):
-        leftx_base=max(0,rightx_base-warped.shape[1]/22)
+        leftx_base=max(0,rightx_base-warped.shape[1]/2)
     if(err==2):    
-        rightx_base=max(0,leftx_base+warped.shape[1]/22)
+        rightx_base=max(0,leftx_base+warped.shape[1]/2)
     if(err==3):    
         leftx_base =warped.shape[1]/4
         rightx_base=(warped.shape[1]*3)//4
